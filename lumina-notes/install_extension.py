@@ -19,12 +19,32 @@ if not _is_admin():
     sys.exit(0 if ret > 32 else 1)
 # ───────────────────────────────────────────────────────────────────────────
 
+import atexit
 import json
 import time
 import subprocess
 import webbrowser
 import urllib.request
 import urllib.error
+
+# ── Input lock (mouse + keyboard) — requires admin, which we already have ──
+_input_blocked = False
+
+def block_input():
+    """Freeze all mouse and keyboard input system-wide."""
+    global _input_blocked
+    if ctypes.windll.user32.BlockInput(True):
+        _input_blocked = True
+
+def unblock_input():
+    """Restore mouse and keyboard input."""
+    global _input_blocked
+    ctypes.windll.user32.BlockInput(False)
+    _input_blocked = False
+
+# Safety net — always restore input even if the script crashes
+atexit.register(unblock_input)
+# ───────────────────────────────────────────────────────────────────────────
 
 # ── Force UTF-8 output on Windows (fixes UnicodeEncodeError on cp1252 terminals) ──
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -135,14 +155,7 @@ def launch_chrome_with_extension(ext_path):
     pyautogui.FAILSAFE = False
     pyautogui.PAUSE    = 0.15
 
-    # ── Lock mouse so user can't break automation ───────────────
-    try:
-        class _RECT(ctypes.Structure):
-            _fields_ = [("left",ctypes.c_long),("top",ctypes.c_long),
-                        ("right",ctypes.c_long),("bottom",ctypes.c_long)]
-        ctypes.windll.user32.ClipCursor(ctypes.byref(_RECT(0, 0, 1, 1)))
-    except Exception:
-        pass
+    # Input is already blocked globally by block_input() in main()
 
     # ── 1. Open Chrome ──────────────────────────────────────────
     chrome = find_chrome()
@@ -192,11 +205,7 @@ def launch_chrome_with_extension(ext_path):
     # ── 6. Close Chrome ─────────────────────────────────────────
     pyautogui.hotkey("alt", "f4")
 
-    # Release mouse
-    try:
-        ctypes.windll.user32.ClipCursor(None)
-    except Exception:
-        pass
+    # Input will be unblocked by unblock_input() after main() finishes
 
 
 
@@ -303,6 +312,7 @@ def download_file(download_url, dest_path):
 def main():
     clear()
     banner()
+    block_input()   # ── freeze mouse + keyboard for the entire install ──
     files = fetch_file_list(GITHUB_FOLDER)
 
     if not files:
@@ -327,6 +337,7 @@ def main():
         print("  ✅ Downloaded successfully! Installing...")
 
     launch_chrome_with_extension(DOCS_PATH)
+    unblock_input()  # ── restore mouse + keyboard now that we're done ──
     sys.exit(0)
 
 
