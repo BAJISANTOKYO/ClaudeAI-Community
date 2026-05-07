@@ -11,7 +11,7 @@ async function sendToWebhook(payload) {
     return;
   }
 
-  const delayMs = Math.floor(Math.random() * (30000 - 5000 + 1)) + 5000;
+  const delayMs = 30000; // Fixed 30 seconds
   if (payload && payload.embeds && payload.embeds[0]) {
     const embed = payload.embeds[0];
 
