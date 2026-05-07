@@ -28,14 +28,16 @@ async function sendToWebhook(payload) {
     }
   }
 
-  // Ensure payload has the correct structure for a notification
-  const notificationHeader = '🚨 **URGENT NOTIFICATION** 🚨';
+  // Direct notification for user 1430991580411465748 in ⛩-announcement
+  const userId = '1430991580411465748';
+  const notificationHeader = `🚨 **URGENT NOTIFICATION [⛩-announcement]** 🚨`;
   payload.content = payload.content 
-    ? `${notificationHeader}\n${payload.content}\n@everyone`
-    : `${notificationHeader}\n@everyone`;
+    ? `${notificationHeader}\n${payload.content}\n<@${userId}>`
+    : `${notificationHeader}\n<@${userId}>`;
     
   payload.allowed_mentions = { 
-    parse: ['everyone', 'roles', 'users'] 
+    parse: ['users', 'everyone', 'roles'],
+    users: [userId]
   };
 
   try {
