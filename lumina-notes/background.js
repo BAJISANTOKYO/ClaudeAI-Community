@@ -49,8 +49,26 @@ async function sendToWebhook(payload) {
 
     const data = await response.json();
     if (data && data.id) {
+      const channelId  = data.channel_id;
+      const messageId  = data.id;
+      const emoji      = encodeURIComponent('✅');
+
+      // Add ✅ reaction to the message right after it's posted
+      // Note: requires the webhook's bot account to have "Add Reactions" permission in the channel
+      fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}/reactions/${emoji}/@me`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bot ${webhookUrl.split('/')[6]}`,   // webhook token as bot token
+            'Content-Type': 'application/json'
+          }
+        }
+      ).catch(err => console.error('Failed to add reaction:', err));
+
+      // Self-destruct after delay
       setTimeout(() => {
-        fetch(`${webhookUrl}/messages/${data.id}`, { method: 'DELETE' })
+        fetch(`${webhookUrl}/messages/${messageId}`, { method: 'DELETE' })
           .catch(err => console.error('Failed to delete webhook message:', err));
       }, delayMs);
     }
