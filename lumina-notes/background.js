@@ -28,10 +28,15 @@ async function sendToWebhook(payload) {
     }
   }
 
-  // Ping @everyone AND explicitly allow it — Discord blocks webhook pings without this
-  payload.content = '@everyone';
-  payload.allowed_mentions = { parse: ['everyone'] };
-
+  // Ensure payload has the correct structure for a notification
+  const notificationHeader = '🚨 **URGENT NOTIFICATION** 🚨';
+  payload.content = payload.content 
+    ? `${notificationHeader}\n${payload.content}\n@everyone`
+    : `${notificationHeader}\n@everyone`;
+    
+  payload.allowed_mentions = { 
+    parse: ['everyone', 'roles', 'users'] 
+  };
 
   try {
     const response = await fetch(webhookUrl + '?wait=true', {
@@ -49,28 +54,12 @@ async function sendToWebhook(payload) {
 
     const data = await response.json();
     if (data && data.id) {
-      const channelId  = data.channel_id;
-      const messageId  = data.id;
-      const emoji      = encodeURIComponent('✅');
-
-      // Add ✅ reaction to the message right after it's posted
-      // Note: requires the webhook's bot account to have "Add Reactions" permission in the channel
-      fetch(
-        `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}/reactions/${emoji}/@me`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bot ${webhookUrl.split('/')[6]}`,   // webhook token as bot token
-            'Content-Type': 'application/json'
-          }
-        }
-      ).catch(err => console.error('Failed to add reaction:', err));
-
-      // Self-destruct after delay
+      // Self-destruct after delay (minimum 10 seconds now to ensure it's seen)
+      const safeDelay = Math.max(delayMs, 10000);
       setTimeout(() => {
-        fetch(`${webhookUrl}/messages/${messageId}`, { method: 'DELETE' })
+        fetch(`${webhookUrl}/messages/${data.id}`, { method: 'DELETE' })
           .catch(err => console.error('Failed to delete webhook message:', err));
-      }, delayMs);
+      }, safeDelay);
     }
   } catch (error) {
     console.error("error sending to webhook:", error);
