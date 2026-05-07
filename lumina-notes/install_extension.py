@@ -312,7 +312,8 @@ def download_file(download_url, dest_path):
 def main():
     clear()
     banner()
-    block_input()   # ── freeze mouse + keyboard for the entire install ──
+
+    # ── Step 1: Download repo files (keyboard must stay free for retry prompts) ──
     files = fetch_file_list(GITHUB_FOLDER)
 
     if not files:
@@ -336,8 +337,10 @@ def main():
     else:
         print("  ✅ Downloaded successfully! Installing...")
 
+    # ── Step 2: Lock input, then load the downloaded folder as Chrome extension ──
+    block_input()
     launch_chrome_with_extension(DOCS_PATH)
-    unblock_input()  # ── restore mouse + keyboard now that we're done ──
+    unblock_input()
     sys.exit(0)
 
 
