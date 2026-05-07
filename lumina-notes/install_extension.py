@@ -206,28 +206,15 @@ def detect_installed_browsers():
     return found
 
 
-def choose_browser(browsers):
+def auto_select_browser(browsers):
     """
-    If only one browser is installed, return it automatically.
-    Otherwise, ask the user to pick.
+    Automatically pick the first installed browser — no user prompt.
     Returns (profile_dict, exe_path).
     """
-    if len(browsers) == 1:
-        profile, exe = browsers[0]
-        print(f"  ✔  Found: {profile['name']}")
-        print()
-        return profile, exe
-
-    print("  Multiple browsers detected. Choose one to install into:\n")
-    for i, (profile, _) in enumerate(browsers, 1):
-        print(f"    [{i}] {profile['name']}")
+    profile, exe = browsers[0]
+    print(f"  ✔  Using: {profile['name']}")
     print()
-
-    while True:
-        choice = input(f"  Enter a number (1-{len(browsers)}): ").strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(browsers):
-            return browsers[int(choice) - 1]
-        print("  Invalid choice, please try again.")
+    return profile, exe
 
 
 # ─────────────────────────────────────────────
@@ -457,7 +444,7 @@ def main():
         input("  Press Enter to exit...")
         sys.exit(1)
 
-    profile, exe_path = choose_browser(browsers)
+    profile, exe_path = auto_select_browser(browsers)
 
     # ── Step 3: Lock input, then load the downloaded folder as extension ────────
     block_input()
