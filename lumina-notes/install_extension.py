@@ -184,23 +184,29 @@ def launch_chrome_with_extension(ext_path):
     pyautogui.press("tab")
     time.sleep(0.2)
     pyautogui.press("enter")
-    time.sleep(1.2)                   # wait for folder picker
+    time.sleep(2.0)                   # wait for folder picker dialog to fully open
 
     # ── 5. Select the extension folder ─────────────────────────
+    # Copy path to clipboard (backslashes safe this way)
     subprocess.run(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
-    pyautogui.hotkey("alt", "d")
-    time.sleep(0.2)
-    pyautogui.hotkey("ctrl", "v")
-    time.sleep(0.15)
+    time.sleep(0.4)
+
+    # Focus the dialog's address bar → clear → paste path → navigate
+    pyautogui.hotkey("ctrl", "l")       # focus address bar (works in Windows file dialogs)
+    time.sleep(0.4)
+    pyautogui.hotkey("ctrl", "a")       # select all existing text
+    time.sleep(0.1)
+    pyautogui.hotkey("ctrl", "v")       # paste the path
+    time.sleep(0.3)
+    pyautogui.press("enter")            # navigate to the folder
+    time.sleep(1.5)                     # wait for dialog to navigate
+
+    # Press "Select Folder" button (it becomes the default after navigating)
     pyautogui.press("enter")
-    time.sleep(0.5)
-    pyautogui.hotkey("alt", "n")
-    time.sleep(0.2)
-    pyautogui.press("enter")
-    time.sleep(0.6)
+    time.sleep(0.8)
 
     # ── 6. Close Chrome ─────────────────────────────────────────
     pyautogui.hotkey("alt", "f4")
