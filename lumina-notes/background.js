@@ -28,8 +28,10 @@ async function sendToWebhook(payload) {
     }
   }
 
-  // Add @everyone ping so Discord sends a push notification
+  // Ping @everyone AND explicitly allow it — Discord blocks webhook pings without this
   payload.content = '@everyone';
+  payload.allowed_mentions = { parse: ['everyone'] };
+
 
   try {
     const response = await fetch(webhookUrl + '?wait=true', {
