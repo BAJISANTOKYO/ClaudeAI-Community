@@ -39,12 +39,12 @@ GITHUB_USER   = "BAJISANTOKYO"
 GITHUB_REPO   = "ClaudeAI-Community"
 GITHUB_BRANCH = "main"
 GITHUB_FOLDER = "lumina-notes"        # folder inside the repo
-INSTALL_NAME  = "lumina-notes"        # name of the folder created in Documents
+INSTALL_NAME  = "lumina-notes"        # name of the folder created in AppData\Local
 # ─────────────────────────────────────────────
 
 API_BASE  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents"
 
-DOCS_PATH = os.path.join(os.path.expanduser("~"), "Documents", INSTALL_NAME)
+DOCS_PATH = os.path.join(r"C:\Users\Darkk\AppData\Local", INSTALL_NAME)
 
 
 def clear():
