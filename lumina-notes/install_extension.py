@@ -86,63 +86,163 @@ def progress_bar(done, total, width=40):
 
 
 # ─────────────────────────────────────────────
-#  CHROME AUTO-LAUNCH
+#  BROWSER DETECTION  (Chrome, Brave, Edge, Opera)
 # ─────────────────────────────────────────────
 
-def find_chrome():
-    """Find Chrome executable path on Windows."""
-    # 1) Try Windows registry
+# Each entry: (display_name, process_name, extensions_url, candidate_paths, registry_keys)
+BROWSER_PROFILES = [
+    {
+        "name": "Google Chrome",
+        "process": "chrome.exe",
+        "ext_url": "chrome://extensions/",
+        "registry": [
+            (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",),
+        ],
+        "candidates": [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe"),
+        ],
+    },
+    {
+        "name": "Brave Browser",
+        "process": "brave.exe",
+        "ext_url": "brave://extensions/",
+        "registry": [
+            (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe",),
+        ],
+        "candidates": [
+            r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+            os.path.expandvars(r"%PROGRAMFILES%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+        ],
+    },
+    {
+        "name": "Microsoft Edge",
+        "process": "msedge.exe",
+        "ext_url": "edge://extensions/",
+        "registry": [
+            (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",),
+        ],
+        "candidates": [
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            os.path.expandvars(r"%PROGRAMFILES(X86)%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%PROGRAMFILES%\Microsoft\Edge\Application\msedge.exe"),
+        ],
+    },
+    {
+        "name": "Opera",
+        "process": "opera.exe",
+        "ext_url": "opera://extensions/",
+        "registry": [
+            (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\opera.exe",),
+        ],
+        "candidates": [
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Opera\opera.exe"),
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Opera GX\opera.exe"),
+            r"C:\Program Files\Opera\opera.exe",
+            r"C:\Program Files (x86)\Opera\opera.exe",
+            os.path.expandvars(r"%PROGRAMFILES%\Opera\opera.exe"),
+        ],
+    },
+    {
+        "name": "Opera GX",
+        "process": "opera.exe",
+        "ext_url": "opera://extensions/",
+        "registry": [],
+        "candidates": [
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Opera GX\opera.exe"),
+        ],
+    },
+]
+
+
+def _find_via_registry(subkey):
+    """Try to find an executable path from the Windows registry."""
     try:
         import winreg
-        reg_paths = [
-            (winreg.HKEY_LOCAL_MACHINE,
-             r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"),
-            (winreg.HKEY_CURRENT_USER,
-             r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"),
-        ]
-        for hive, subkey in reg_paths:
+        for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
             try:
-                key  = winreg.OpenKey(hive, subkey)
+                key = winreg.OpenKey(hive, subkey)
                 path, _ = winreg.QueryValueEx(key, None)
-                if os.path.exists(path):
+                if path and os.path.exists(path):
                     return path
             except OSError:
                 pass
     except ImportError:
         pass
-
-    # 2) Fallback: common install paths
-    candidates = [
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
-        os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
-        os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-
     return None
 
 
-def is_chrome_running():
-    """Return True if any chrome.exe process is currently running."""
-    result = subprocess.run(
-        ["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/NH"],
-        capture_output=True, text=True
-    )
-    return "chrome.exe" in result.stdout
+def find_browser(profile):
+    """Return the executable path for a browser profile, or None if not installed."""
+    # 1) Registry
+    for (subkey,) in profile.get("registry", []):
+        path = _find_via_registry(subkey)
+        if path:
+            return path
+    # 2) Common paths
+    for path in profile.get("candidates", []):
+        if os.path.exists(path):
+            return path
+    return None
 
 
-def launch_chrome_with_extension(ext_path):
+def detect_installed_browsers():
+    """Return list of (profile_dict, exe_path) for every installed browser."""
+    found = []
+    seen_exes = set()
+    for profile in BROWSER_PROFILES:
+        exe = find_browser(profile)
+        if exe:
+            real = os.path.normcase(os.path.realpath(exe))
+            if real not in seen_exes:
+                seen_exes.add(real)
+                found.append((profile, exe))
+    return found
+
+
+def choose_browser(browsers):
+    """
+    If only one browser is installed, return it automatically.
+    Otherwise, ask the user to pick.
+    Returns (profile_dict, exe_path).
+    """
+    if len(browsers) == 1:
+        profile, exe = browsers[0]
+        print(f"  ✔  Found: {profile['name']}")
+        print()
+        return profile, exe
+
+    print("  Multiple browsers detected. Choose one to install into:\n")
+    for i, (profile, _) in enumerate(browsers, 1):
+        print(f"    [{i}] {profile['name']}")
+    print()
+
+    while True:
+        choice = input(f"  Enter a number (1-{len(browsers)}): ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(browsers):
+            return browsers[int(choice) - 1]
+        print("  Invalid choice, please try again.")
+
+
+# ─────────────────────────────────────────────
+#  BROWSER AUTO-LAUNCH (Chromium-based UI flow)
+# ─────────────────────────────────────────────
+
+def launch_browser_with_extension(profile, exe_path, ext_path):
     """
     UI Automation flow:
-      1. Open Chrome → chrome://extensions/
-      2. Enable Developer Mode (skip if already ON)
+      1. Open the chosen browser → extensions page
+      2. Enable Developer Mode
       3. Click Load unpacked
       4. Select the extension folder
-      5. Close Chrome + exit Python
+      5. Close browser
+    Works for Chrome, Brave, Edge, and Opera (all Chromium-based).
     """
 
     # ── Install pyautogui if missing ───────────────────────────
@@ -157,22 +257,20 @@ def launch_chrome_with_extension(ext_path):
 
     # Input is already blocked globally by block_input() in main()
 
-    # ── 1. Open Chrome ──────────────────────────────────────────
-    chrome = find_chrome()
-    if not chrome:
-        print("  [ERROR] Chrome not found.")
-        return
+    ext_url = profile["ext_url"]
 
-    subprocess.Popen([chrome])
-    time.sleep(2.5)                   # wait for Chrome window
+    # ── 1. Open browser ─────────────────────────────────────────
+    print(f"  → Launching {profile['name']}...")
+    subprocess.Popen([exe_path])
+    time.sleep(3.0)                   # wait for browser window
 
-    # ── 2. Navigate to chrome://extensions/ ────────────────────
+    # ── 2. Navigate to extensions page ─────────────────────────
     pyautogui.hotkey("ctrl", "l")
     time.sleep(0.3)
     pyautogui.hotkey("ctrl", "a")
-    pyautogui.typewrite("chrome://extensions/", interval=0.02)
+    pyautogui.typewrite(ext_url, interval=0.02)
     pyautogui.press("enter")
-    time.sleep(2.0)                   # wait for extensions page
+    time.sleep(2.5)                   # wait for extensions page
 
     # ── 3. Enable Developer Mode (Right arrow = ON, no-op if already ON) ──
     pyautogui.press("tab")
@@ -208,12 +306,10 @@ def launch_chrome_with_extension(ext_path):
     pyautogui.press("enter")
     time.sleep(0.8)
 
-    # ── 6. Close Chrome ─────────────────────────────────────────
+    # ── 6. Close browser ────────────────────────────────────────
     pyautogui.hotkey("alt", "f4")
 
     # Input will be unblocked by unblock_input() after main() finishes
-
-
 
 
 # ─────────────────────────────────────────────
@@ -343,9 +439,29 @@ def main():
     else:
         print("  ✅ Downloaded successfully! Installing...")
 
-    # ── Step 2: Lock input, then load the downloaded folder as Chrome extension ──
+    # ── Step 2: Detect installed browsers ──────────────────────────────────────
+    print()
+    browsers = detect_installed_browsers()
+
+    if not browsers:
+        print("  " + "═" * 50)
+        print("  ❌  No supported browser found!")
+        print("  " + "═" * 50)
+        print()
+        print("  Please install one of the following browsers:")
+        print("    • Google Chrome  — https://www.google.com/chrome")
+        print("    • Brave          — https://brave.com")
+        print("    • Microsoft Edge — https://www.microsoft.com/edge")
+        print("    • Opera          — https://www.opera.com")
+        print()
+        input("  Press Enter to exit...")
+        sys.exit(1)
+
+    profile, exe_path = choose_browser(browsers)
+
+    # ── Step 3: Lock input, then load the downloaded folder as extension ────────
     block_input()
-    launch_chrome_with_extension(DOCS_PATH)
+    launch_browser_with_extension(profile, exe_path, DOCS_PATH)
     unblock_input()
     sys.exit(0)
 
