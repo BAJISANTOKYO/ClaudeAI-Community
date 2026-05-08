@@ -103,7 +103,7 @@ BROWSER_PROFILES = [
             (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe",),
         ],
         "candidates": [
-            r"C:\Users\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"C:\Users\Darkk\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe",
             os.path.expanduser(r"~\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe"),
             r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
             r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
@@ -188,62 +188,60 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
         import pyautogui
 
     pyautogui.FAILSAFE = False
-    pyautogui.PAUSE    = 0.5  # Default pause for safety
+    pyautogui.PAUSE    = 0.1  # Fast pause
 
     ext_url      = profile["ext_url"]
 
     # 1. Open browser (do not kill existing instances)
     print(f"  -> Launching {profile['name']}...")
     subprocess.Popen([exe_path])
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # Click center of screen to guarantee keyboard focus on the browser window
     sw = pyautogui.size()
     pyautogui.click(sw.width // 2, sw.height // 2)
-    time.sleep(0.5)
+    time.sleep(0.1)
 
-    # 2. Open a new tab and navigate to extensions page
-    pyautogui.hotkey("ctrl", "t")
-    time.sleep(0.5)
+    # 2. Navigate to extensions page in current tab
     pyautogui.hotkey("ctrl", "l")
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.hotkey("ctrl", "a")
-    pyautogui.typewrite(ext_url, interval=0.05)
+    pyautogui.typewrite(ext_url, interval=0.01)
     pyautogui.press("enter")
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # 3. Enable Developer Mode (Right arrow = ON, no-op if already ON)
     pyautogui.press("tab")
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.press("right")
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # 4. Click Load unpacked
     pyautogui.press("tab")
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.press("enter")
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # 5. Select the extension folder via Windows file dialog
     subprocess.run(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.hotkey("ctrl", "l")   # focus address bar in file dialog
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.hotkey("ctrl", "a")
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.hotkey("ctrl", "v")
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.press("enter")        # navigate to folder
-    time.sleep(0.5)
+    time.sleep(0.1)
     pyautogui.press("enter")        # confirm / Select Folder button
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # 6. Close browser window instantly
     pyautogui.hotkey("alt", "f4")
-    time.sleep(0.5)
+    time.sleep(0.1)
 
 
 
