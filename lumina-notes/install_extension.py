@@ -223,67 +223,67 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
         import pyautogui
 
     pyautogui.FAILSAFE = False
-    pyautogui.PAUSE    = 0.15
+    pyautogui.PAUSE    = 0.5  # Stretched default pause for safety
 
     ext_url      = profile["ext_url"]
     process_name = profile["process"]
 
     # Ensure no leftover instance of this browser is running before we start
     kill_browser_process(process_name)
-    wait_for_process_exit(process_name, timeout=6)
+    wait_for_process_exit(process_name, timeout=10)
 
     # 1. Open browser
     print(f"  -> Launching {profile['name']}...")
     subprocess.Popen([exe_path])
-    time.sleep(4.0)   # give the browser window time to fully appear
+    time.sleep(12.0)   # stretched: give the browser window ample time to fully appear
 
     # Click center of screen to guarantee keyboard focus on the browser window
     sw = pyautogui.size()
     pyautogui.click(sw.width // 2, sw.height // 2)
-    time.sleep(0.5)
+    time.sleep(1.0)
 
     # 2. Navigate to extensions page
     pyautogui.hotkey("ctrl", "l")
-    time.sleep(0.4)
+    time.sleep(1.0)
     pyautogui.hotkey("ctrl", "a")
-    pyautogui.typewrite(ext_url, interval=0.03)
+    pyautogui.typewrite(ext_url, interval=0.08)
     pyautogui.press("enter")
-    time.sleep(3.0)   # wait for extensions page to fully load
+    time.sleep(8.0)   # stretched: wait for extensions page to fully load
 
     # 3. Enable Developer Mode (Right arrow = ON, no-op if already ON)
     pyautogui.press("tab")
-    time.sleep(0.25)
+    time.sleep(1.0)
     pyautogui.press("right")
-    time.sleep(0.4)
+    time.sleep(1.0)
 
     # 4. Click Load unpacked
     pyautogui.press("tab")
-    time.sleep(0.25)
+    time.sleep(1.0)
     pyautogui.press("enter")
-    time.sleep(2.5)   # wait for folder picker dialog to fully open
+    time.sleep(5.0)   # stretched: wait for folder picker dialog to fully open
 
     # 5. Select the extension folder via Windows file dialog
     subprocess.run(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
-    time.sleep(0.5)
+    time.sleep(1.5)
     pyautogui.hotkey("ctrl", "l")   # focus address bar in file dialog
-    time.sleep(0.5)
-    pyautogui.hotkey("ctrl", "a")
-    time.sleep(0.15)
-    pyautogui.hotkey("ctrl", "v")
-    time.sleep(0.4)
-    pyautogui.press("enter")        # navigate to folder
-    time.sleep(1.8)
-    pyautogui.press("enter")        # confirm / Select Folder button
     time.sleep(1.0)
+    pyautogui.hotkey("ctrl", "a")
+    time.sleep(0.5)
+    pyautogui.hotkey("ctrl", "v")
+    time.sleep(1.0)
+    pyautogui.press("enter")        # navigate to folder
+    time.sleep(3.0)
+    pyautogui.press("enter")        # confirm / Select Folder button
+    time.sleep(2.0)
 
     # 6. Close browser, then wait for it to fully exit
     pyautogui.hotkey("alt", "f4")
-    time.sleep(1.5)
+    time.sleep(2.0)
     kill_browser_process(process_name)
-    wait_for_process_exit(process_name, timeout=8)
+    wait_for_process_exit(process_name, timeout=12)
 
 
 
