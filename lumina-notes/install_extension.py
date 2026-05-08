@@ -98,7 +98,7 @@ BROWSER_PROFILES = [
     {
         "name": "Microsoft Edge",
         "process": "msedge.exe",
-        "ext_url": "edge://extensions/",
+        "ext_url": "edge://extension",
         "registry": [
             (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",),
         ],
@@ -187,12 +187,21 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     time.sleep(0.3)
 
     # 2. Navigate to extensions page via address bar
-    pyautogui.hotkey("ctrl", "l")
+    #    NOTE: pyautogui.typewrite() silently drops special chars like ':' and '/'
+    #    so we copy the URL to clipboard and paste it instead.
+    subprocess.run(
+        ["powershell", "-Command", f"Set-Clipboard -Value '{ext_url}'"],
+        capture_output=True
+    )
+    time.sleep(0.2)
+    pyautogui.hotkey("ctrl", "l")   # focus address bar
     time.sleep(0.2)
     pyautogui.hotkey("ctrl", "a")
-    pyautogui.typewrite(ext_url, interval=0.02)
+    time.sleep(0.1)
+    pyautogui.hotkey("ctrl", "v")   # paste full URL (preserves :// etc.)
+    time.sleep(0.1)
     pyautogui.press("enter")
-    time.sleep(1.5)   # wait for extensions page to load
+    time.sleep(2.0)   # wait for extensions page to fully load
 
     # 3. Enable Developer Mode
     #    Edge: needs 3 tabs to land on the toggle, then Space to flip it
