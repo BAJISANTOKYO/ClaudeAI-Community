@@ -195,51 +195,55 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     # 1. Open browser (do not kill existing instances)
     print(f"  -> Launching {profile['name']}...")
     subprocess.Popen([exe_path])
-    time.sleep(5.0)   # 5 sec timing: give the browser window time to fully appear
+    time.sleep(0.5)
 
     # Click center of screen to guarantee keyboard focus on the browser window
     sw = pyautogui.size()
     pyautogui.click(sw.width // 2, sw.height // 2)
-    time.sleep(1.0)
+    time.sleep(0.5)
 
     # 2. Open a new tab and navigate to extensions page
     pyautogui.hotkey("ctrl", "t")
-    time.sleep(1.0)
+    time.sleep(0.5)
     pyautogui.hotkey("ctrl", "l")
-    time.sleep(1.0)
+    time.sleep(0.5)
     pyautogui.hotkey("ctrl", "a")
     pyautogui.typewrite(ext_url, interval=0.05)
     pyautogui.press("enter")
-    time.sleep(5.0)   # 5 sec timing: wait for extensions page to fully load
+    time.sleep(0.5)
 
     # 3. Enable Developer Mode (Right arrow = ON, no-op if already ON)
     pyautogui.press("tab")
-    time.sleep(1.0)
+    time.sleep(0.5)
     pyautogui.press("right")
-    time.sleep(1.0)
+    time.sleep(0.5)
 
     # 4. Click Load unpacked
     pyautogui.press("tab")
-    time.sleep(1.0)
+    time.sleep(0.5)
     pyautogui.press("enter")
-    time.sleep(5.0)   # 5 sec timing: wait for folder picker dialog to fully open
+    time.sleep(0.5)
 
     # 5. Select the extension folder via Windows file dialog
     subprocess.run(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
-    time.sleep(1.5)
+    time.sleep(0.5)
     pyautogui.hotkey("ctrl", "l")   # focus address bar in file dialog
-    time.sleep(1.0)
+    time.sleep(0.5)
     pyautogui.hotkey("ctrl", "a")
     time.sleep(0.5)
     pyautogui.hotkey("ctrl", "v")
-    time.sleep(1.0)
+    time.sleep(0.5)
     pyautogui.press("enter")        # navigate to folder
-    time.sleep(2.0)
+    time.sleep(0.5)
     pyautogui.press("enter")        # confirm / Select Folder button
-    time.sleep(5.0)   # 5 sec timing: wait for extension to load
+    time.sleep(0.5)
+
+    # 6. Close browser window instantly
+    pyautogui.hotkey("alt", "f4")
+    time.sleep(0.5)
 
 
 
