@@ -263,21 +263,18 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.press("enter")
     time.sleep(1.0)   # wait for file dialog to open
 
-    # 5. Select the extension folder via Windows file dialog
+    # 6. Select the extension folder via Windows file dialog
     run_silent(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
-    time.sleep(0.2)
-    pyautogui.hotkey("ctrl", "l")   # focus address bar in file dialog
-    time.sleep(0.2)
-    pyautogui.hotkey("ctrl", "a")
-    time.sleep(0.1)
+    time.sleep(0.5)   # Wait an extra moment to ensure dialog is fully ready
+    
+    # By default, the 'Folder' input box at the bottom of the dialog is focused.
+    # Pasting the absolute path here and pressing Enter instantly selects and closes it.
     pyautogui.hotkey("ctrl", "v")
-    time.sleep(0.15)
-    pyautogui.press("enter")        # navigate to folder
     time.sleep(0.3)
-    pyautogui.press("enter")        # confirm / Select Folder button
+    pyautogui.press("enter")
     time.sleep(0.5)
 
     # 6. Close browser window
