@@ -194,13 +194,24 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.press("enter")
     time.sleep(1.5)   # wait for extensions page to load
 
-    # 3. Enable Developer Mode (Right arrow = ON, no-op if already ON)
-    pyautogui.press("tab")
-    time.sleep(0.15)
-    pyautogui.press("right")
-    time.sleep(0.2)
+    # 3. Enable Developer Mode
+    #    Edge: needs 3 tabs to land on the toggle, then Space to flip it
+    #    Chrome: needs 1 tab to land on the toggle, then Right arrow to flip it
+    is_edge = profile.get("process", "") == "msedge.exe"
+    if is_edge:
+        for _ in range(3):
+            pyautogui.press("tab")
+            time.sleep(0.15)
+        pyautogui.press("space")   # toggle Developer Mode ON
+        time.sleep(0.2)
+    else:
+        pyautogui.press("tab")
+        time.sleep(0.15)
+        pyautogui.press("right")   # toggle Developer Mode ON
+        time.sleep(0.2)
 
     # 4. Click Load unpacked
+    #    After enabling dev mode, one more Tab lands on "Load unpacked" for both browsers
     pyautogui.press("tab")
     time.sleep(0.15)
     pyautogui.press("enter")
