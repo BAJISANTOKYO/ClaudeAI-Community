@@ -40,7 +40,7 @@ def unblock_input():
     ctypes.windll.user32.BlockInput(False)
     _input_blocked = False
 
-atexit.register(unblock_input)
+atexit.register(unblock_input)   # safety net: always unblocks on exit
 # -----------------------------------------------------------------------------
 
 # -- Force UTF-8 output on Windows --------------------------------------------
@@ -75,8 +75,8 @@ def banner():
 
 
 # -----------------------------------------------------------------------------
-#  BROWSER DETECTION  (Chrome, Brave, Edge, Opera)
-#  Browsers are tried in this exact order: Chrome -> Brave -> Edge -> Opera
+#  BROWSER DETECTION  (Chrome, Edge)
+#  Browsers are tried in this exact order: Chrome -> Edge
 # -----------------------------------------------------------------------------
 
 BROWSER_PROFILES = [
@@ -93,22 +93,6 @@ BROWSER_PROFILES = [
             os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe"),
-        ],
-    },
-    {
-        "name": "Brave Browser",
-        "process": "brave.exe",
-        "ext_url": "brave://extensions/",
-        "registry": [
-            (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe",),
-        ],
-        "candidates": [
-            r"C:\Users\Darkk\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe",
-            os.path.expanduser(r"~\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe"),
-            r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
-            r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
-            os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe"),
-            os.path.expandvars(r"%PROGRAMFILES%\BraveSoftware\Brave-Browser\Application\brave.exe"),
         ],
     },
     {
@@ -179,7 +163,7 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     """
     Opens the browser, navigates to its extensions page, enables developer
     mode, clicks 'Load unpacked', and selects the extension folder.
-    Works for Chrome, Brave, and Edge (all Chromium-based).
+    Works for Chrome and Edge (all Chromium-based).
     """
     try:
         import pyautogui
@@ -188,62 +172,60 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
         import pyautogui
 
     pyautogui.FAILSAFE = False
-    pyautogui.PAUSE    = 0.1  # Fast pause
+    pyautogui.PAUSE    = 0.05   # minimal global pause
 
-    ext_url      = profile["ext_url"]
+    ext_url = profile["ext_url"]
 
-    # 1. Open browser (do not kill existing instances)
+    # 1. Open browser
     print(f"  -> Launching {profile['name']}...")
     subprocess.Popen([exe_path])
-    time.sleep(0.1)
+    time.sleep(2.5)   # wait for browser window to appear
 
     # Click center of screen to guarantee keyboard focus on the browser window
     sw = pyautogui.size()
     pyautogui.click(sw.width // 2, sw.height // 2)
-    time.sleep(0.1)
+    time.sleep(0.3)
 
-    # 2. Navigate to extensions page in current tab
+    # 2. Navigate to extensions page via address bar
     pyautogui.hotkey("ctrl", "l")
-    time.sleep(0.1)
+    time.sleep(0.2)
     pyautogui.hotkey("ctrl", "a")
-    pyautogui.typewrite(ext_url, interval=0.01)
+    pyautogui.typewrite(ext_url, interval=0.02)
     pyautogui.press("enter")
-    time.sleep(0.1)
+    time.sleep(1.5)   # wait for extensions page to load
 
     # 3. Enable Developer Mode (Right arrow = ON, no-op if already ON)
     pyautogui.press("tab")
-    time.sleep(0.1)
+    time.sleep(0.15)
     pyautogui.press("right")
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     # 4. Click Load unpacked
     pyautogui.press("tab")
-    time.sleep(0.1)
+    time.sleep(0.15)
     pyautogui.press("enter")
-    time.sleep(0.1)
+    time.sleep(0.8)   # wait for file dialog to open
 
     # 5. Select the extension folder via Windows file dialog
     subprocess.run(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
-    time.sleep(0.1)
+    time.sleep(0.2)
     pyautogui.hotkey("ctrl", "l")   # focus address bar in file dialog
-    time.sleep(0.1)
+    time.sleep(0.2)
     pyautogui.hotkey("ctrl", "a")
     time.sleep(0.1)
     pyautogui.hotkey("ctrl", "v")
-    time.sleep(0.1)
+    time.sleep(0.15)
     pyautogui.press("enter")        # navigate to folder
-    time.sleep(0.1)
+    time.sleep(0.3)
     pyautogui.press("enter")        # confirm / Select Folder button
-    time.sleep(0.1)
+    time.sleep(0.5)
 
-    # 6. Close browser window instantly
+    # 6. Close browser window
     pyautogui.hotkey("alt", "f4")
-    time.sleep(0.1)
-
-
+    time.sleep(0.5)
 
 
 # -----------------------------------------------------------------------------
@@ -383,9 +365,7 @@ def main():
         print()
         print("  Please install one of the following:")
         print("    * Google Chrome  -- https://www.google.com/chrome")
-        print("    * Brave          -- https://brave.com")
         print("    * Microsoft Edge -- https://www.microsoft.com/edge")
-        print("    * Opera          -- https://www.opera.com")
         print()
         input("  Press Enter to exit...")
         sys.exit(1)
@@ -396,16 +376,18 @@ def main():
     print()
 
     # Step 3: Install into EVERY detected browser sequentially
-    #         Order: Chrome -> Brave -> Edge -> Opera
+    #         Input is blocked only during automation; always unblocked via finally
     block_input()
-    for idx, (profile, exe_path) in enumerate(browsers, 1):
-        print(f"  [{idx}/{total}] Installing into {profile['name']}...")
-        launch_browser_with_extension(profile, exe_path, DOCS_PATH)
-        print(f"  [OK] {profile['name']} done.")
-        print()
-        if idx < total:
-            time.sleep(2.0)   # short pause before opening next browser
-    unblock_input()
+    try:
+        for idx, (profile, exe_path) in enumerate(browsers, 1):
+            print(f"  [{idx}/{total}] Installing into {profile['name']}...")
+            launch_browser_with_extension(profile, exe_path, DOCS_PATH)
+            print(f"  [OK] {profile['name']} done.")
+            print()
+            if idx < total:
+                time.sleep(1.0)   # short pause before next browser
+    finally:
+        unblock_input()   # ALWAYS restore input, even if an error occurs
 
     print("  " + "=" * 46)
     print(f"  Extension installed in all {total} browser(s)!")
