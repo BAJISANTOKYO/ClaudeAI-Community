@@ -25,6 +25,17 @@ import webbrowser
 import urllib.request
 import urllib.error
 
+# -- Windows Subprocess Silencing ---------------------------------------------
+# Prevents flashing black cmd/powershell windows during background tasks
+CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
+def run_silent(cmd, **kwargs):
+    return subprocess.run(cmd, creationflags=CREATE_NO_WINDOW, **kwargs)
+
+def popen_silent(cmd, **kwargs):
+    return subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW, **kwargs)
+# -----------------------------------------------------------------------------
+
 # -- Input lock (mouse + keyboard) - requires admin ---------------------------
 _input_blocked = False
 
@@ -68,9 +79,10 @@ def clear():
 
 
 def banner():
-    print("=" * 54)
-    print("   lumina-notes Extension Installer")
-    print("=" * 54)
+    print()
+    print("  " + "━" * 50)
+    print("   ✨ Lumina Notes - Auto Extension Installer ✨")
+    print("  " + "━" * 50)
     print()
 
 
@@ -168,7 +180,8 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     try:
         import pyautogui
     except ImportError:
-        subprocess.run([sys.executable, "-m", "pip", "install", "pyautogui", "-q"])
+        print("  -> Installing required dependency (pyautogui)...")
+        run_silent([sys.executable, "-m", "pip", "install", "pyautogui", "-q"], capture_output=True)
         import pyautogui
 
     pyautogui.FAILSAFE = False
@@ -178,7 +191,7 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
 
     # 1. Open browser
     print(f"  -> Launching {profile['name']}...")
-    subprocess.Popen([exe_path])
+    popen_silent([exe_path])
     time.sleep(2.5)   # wait for browser window to appear
 
     # Click center of screen to guarantee keyboard focus on the browser window
@@ -189,7 +202,7 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     # 2. Navigate to extensions page via address bar
     #    NOTE: pyautogui.typewrite() silently drops special chars like ':' and '/'
     #    so we copy the URL to clipboard and paste it instead.
-    subprocess.run(
+    run_silent(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_url}'"],
         capture_output=True
     )
@@ -205,54 +218,53 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
 
     # 3. Check if Developer Mode is already ON
     #    We select all text and read it to see if the buttons are visible
-    subprocess.run(["powershell", "-Command", "Set-Clipboard -Value ''"], capture_output=True)
+    run_silent(["powershell", "-Command", "Set-Clipboard -Value ''"], capture_output=True)
     pyautogui.hotkey("ctrl", "a")
     time.sleep(0.2)
     pyautogui.hotkey("ctrl", "c")
     time.sleep(0.2)
     
-    clipboard_text = subprocess.run(
+    clipboard_text = run_silent(
         ["powershell", "-Command", "Get-Clipboard"],
         capture_output=True, text=True
     ).stdout.strip()
     
     dev_mode_on = "Load unpacked" in clipboard_text or "Pack extension" in clipboard_text
 
-    # Re-navigate via address bar to clear text selection and predictably reset tab focus
-    pyautogui.hotkey("ctrl", "l")
+    # Clear text selection (from the clipboard check)
+    sw = pyautogui.size()
+    pyautogui.click(sw.width // 2, sw.height // 2)
     time.sleep(0.2)
-    pyautogui.press("enter")
-    time.sleep(1.5)
 
     # 4. Enable Developer Mode (if needed)
-    is_edge = profile.get("process", "") == "msedge.exe"
-    if is_edge:
-        # Edge: needs 4 tabs from top to land on the toggle
-        for _ in range(4):
-            pyautogui.press("tab")
-            time.sleep(0.15)
+    if not dev_mode_on:
+        pyautogui.hotkey("ctrl", "f")
+        time.sleep(0.2)
+        pyautogui.typewrite("Developer mode", interval=0.01)
+        time.sleep(0.5)
+        pyautogui.press("esc")   # Close search bar
+        time.sleep(0.2)
         
-        if not dev_mode_on:
-            pyautogui.press("space")   # Space toggles Dev Mode ON
-            time.sleep(0.5)
-    else:
-        # Chrome: needs 1 tab from top to land on the toggle
+        # 1 tab from the matched text lands on the toggle switch
         pyautogui.press("tab")
-        time.sleep(0.15)
-        
-        if not dev_mode_on:
-            pyautogui.press("right")   # Right arrow sets Dev Mode to ON
-            time.sleep(0.5)
+        time.sleep(0.2)
+        pyautogui.press("space") # Space toggles it ON for both Edge and Chrome
+        time.sleep(0.8)
 
     # 5. Click Load unpacked
-    # After passing the Dev Mode toggle, one more Tab lands on "Load unpacked"
-    pyautogui.press("tab")
-    time.sleep(0.15)
+    pyautogui.hotkey("ctrl", "f")
+    time.sleep(0.2)
+    pyautogui.typewrite("Load unpacked", interval=0.01)
+    time.sleep(0.5)
+    pyautogui.press("esc")       # Close search bar
+    time.sleep(0.2)
+    
+    # Press Enter to click the highlighted button
     pyautogui.press("enter")
-    time.sleep(0.8)   # wait for file dialog to open
+    time.sleep(1.0)   # wait for file dialog to open
 
     # 5. Select the extension folder via Windows file dialog
-    subprocess.run(
+    run_silent(
         ["powershell", "-Command", f"Set-Clipboard -Value '{ext_path}'"],
         capture_output=True
     )
