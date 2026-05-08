@@ -98,7 +98,7 @@ BROWSER_PROFILES = [
     {
         "name": "Microsoft Edge",
         "process": "msedge.exe",
-        "ext_url": "edge://extension",
+        "ext_url": "edge://extensions/",
         "registry": [
             (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",),
         ],
