@@ -173,34 +173,52 @@ def detect_installed_browsers():
 
 def is_dev_mode_on():
     """
-    Take a screenshot and scan the top-right region for the distinctive
-    blue colour of the 'Developer mode ON' toggle.
+    Take a screenshot and scan for the Developer Mode toggle being ON.
 
-    Returns True  -> blue tick detected, dev mode is already ON  (skip toggle)
-    Returns False -> no blue tick found, dev mode is OFF  (need to enable it)
+    The toggle is a small coloured pill/checkbox in the top-right corner
+    of the extensions page CONTENT area (below the browser toolbar).
 
-    Toggle colours:
-        Edge   #0078D4  R~0,   G~120, B~212
-        Chrome #1A73E8  R~26,  G~115, B~232
+    We deliberately scan only a narrow horizontal band at the very top of
+    the page content (just beneath the browser chrome) to avoid false
+    positives from Edge/Chrome's own blue toolbar buttons.
+
+    Returns True  -> blue toggle detected  -> dev mode is ON  (skip)
+    Returns False -> no blue toggle found  -> dev mode is OFF (enable it)
     """
     try:
         import pyautogui
-        shot        = pyautogui.screenshot()
-        sw_w, sw_h  = shot.size
-        # The toggle always sits in the top-right area of the extensions page
-        region      = shot.crop((sw_w // 2, 0, sw_w, sw_h * 35 // 100))
-        px          = region.load()
-        rw, rh      = region.size
+        try:
+            # pyrefly: ignore [missing-import]
+            from PIL import Image as _PILImage  # noqa: confirm Pillow is present
+        except ImportError:
+            run_silent([sys.executable, "-m", "pip", "install", "Pillow", "-q"], capture_output=True)
 
-        for y in range(0, rh, 2):
-            for x in range(0, rw, 2):
-                r, g, b = px[x, y][:3]
-                # Match the blue ON-toggle colour range for both browsers
-                if b > 160 and r < 70 and 80 < g < 165:
+        shot = pyautogui.screenshot().convert("RGB")   # always 3-channel
+        sw_w, sw_h = shot.size
+
+        # The extensions-page header (with the Dev Mode toggle) sits in roughly
+        # y = 8%..20% of the screen height, right half of the screen.
+        # We stay BELOW the browser toolbar (top ~8%) to avoid false positives.
+        top    = int(sw_h * 0.08)
+        bottom = int(sw_h * 0.22)
+        left   = sw_w * 3 // 5          # right-ish: toggle is on the far right
+        region = shot.crop((left, top, sw_w, bottom))
+        region = region.convert("RGB")
+        px     = region.load()
+        rw, rh = region.size
+
+        for y in range(0, rh, 1):       # every pixel row (band is small)
+            for x in range(0, rw, 2):   # every other column
+                r, g, b = px[x, y]
+                # Edge toggle ON:   #0078D4 -> R 0-30,  G 100-145, B 195-225
+                # Chrome toggle ON: #1A73E8 -> R 20-50, G 100-135, B 220-245
+                edge_blue   = (r < 35  and 95  < g < 150 and 190 < b < 230)
+                chrome_blue = (r < 55  and 95  < g < 145 and 215 < b < 250)
+                if edge_blue or chrome_blue:
                     return True
         return False
     except Exception:
-        return False   # On any error, assume OFF so we attempt to enable it
+        return False   # on any error, assume OFF -> attempt to enable
 
 
 # -----------------------------------------------------------------------------
@@ -250,7 +268,11 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.hotkey("ctrl", "v")   # paste full URL (preserves :// etc.)
     time.sleep(0.1)
     pyautogui.press("enter")
-    time.sleep(2.0)   # wait for extensions page to fully load
+    time.sleep(3.0)   # wait for extensions page to fully load
+
+    # Scroll to top to ensure the Dev Mode toggle is visible on screen
+    pyautogui.hotkey("ctrl", "home")
+    time.sleep(0.3)
 
     # 3. Check Developer Mode state — scan for the blue toggle tick
     dev_mode_on = is_dev_mode_on()
