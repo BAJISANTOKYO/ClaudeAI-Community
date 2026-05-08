@@ -103,6 +103,8 @@ BROWSER_PROFILES = [
             (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe",),
         ],
         "candidates": [
+            r"C:\Users\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe",
+            os.path.expanduser(r"~\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe"),
             r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
             r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
             os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe"),
@@ -121,21 +123,6 @@ BROWSER_PROFILES = [
             r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
             os.path.expandvars(r"%PROGRAMFILES(X86)%\Microsoft\Edge\Application\msedge.exe"),
             os.path.expandvars(r"%PROGRAMFILES%\Microsoft\Edge\Application\msedge.exe"),
-        ],
-    },
-    {
-        "name": "Opera",
-        "process": "opera.exe",
-        "ext_url": "opera://extensions/",
-        "registry": [
-            (r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\opera.exe",),
-        ],
-        "candidates": [
-            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Opera\opera.exe"),
-            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Opera GX\opera.exe"),
-            r"C:\Program Files\Opera\opera.exe",
-            r"C:\Program Files (x86)\Opera\opera.exe",
-            os.path.expandvars(r"%PROGRAMFILES%\Opera\opera.exe"),
         ],
     },
 ]
@@ -188,33 +175,11 @@ def detect_installed_browsers():
 #  BROWSER AUTO-LAUNCH  (Chromium-based UI automation)
 # -----------------------------------------------------------------------------
 
-def wait_for_process_exit(process_name, timeout=10):
-    """Block until no process with that name is running, or timeout expires."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        result = subprocess.run(
-            ["tasklist", "/FI", f"IMAGENAME eq {process_name}", "/NH"],
-            capture_output=True, text=True
-        )
-        if process_name.lower() not in result.stdout.lower():
-            return True
-        time.sleep(0.5)
-    return False   # timed out, continue anyway
-
-
-def kill_browser_process(process_name):
-    """Force-kill any running instance of the browser process."""
-    subprocess.run(
-        ["taskkill", "/F", "/IM", process_name],
-        capture_output=True
-    )
-
-
 def launch_browser_with_extension(profile, exe_path, ext_path):
     """
     Opens the browser, navigates to its extensions page, enables developer
     mode, clicks 'Load unpacked', and selects the extension folder.
-    Works for Chrome, Brave, Edge, and Opera (all Chromium-based).
+    Works for Chrome, Brave, and Edge (all Chromium-based).
     """
     try:
         import pyautogui
@@ -223,32 +188,29 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
         import pyautogui
 
     pyautogui.FAILSAFE = False
-    pyautogui.PAUSE    = 0.5  # Stretched default pause for safety
+    pyautogui.PAUSE    = 0.5  # Default pause for safety
 
     ext_url      = profile["ext_url"]
-    process_name = profile["process"]
 
-    # Ensure no leftover instance of this browser is running before we start
-    kill_browser_process(process_name)
-    wait_for_process_exit(process_name, timeout=10)
-
-    # 1. Open browser
+    # 1. Open browser (do not kill existing instances)
     print(f"  -> Launching {profile['name']}...")
     subprocess.Popen([exe_path])
-    time.sleep(12.0)   # stretched: give the browser window ample time to fully appear
+    time.sleep(5.0)   # 5 sec timing: give the browser window time to fully appear
 
     # Click center of screen to guarantee keyboard focus on the browser window
     sw = pyautogui.size()
     pyautogui.click(sw.width // 2, sw.height // 2)
     time.sleep(1.0)
 
-    # 2. Navigate to extensions page
+    # 2. Open a new tab and navigate to extensions page
+    pyautogui.hotkey("ctrl", "t")
+    time.sleep(1.0)
     pyautogui.hotkey("ctrl", "l")
     time.sleep(1.0)
     pyautogui.hotkey("ctrl", "a")
-    pyautogui.typewrite(ext_url, interval=0.08)
+    pyautogui.typewrite(ext_url, interval=0.05)
     pyautogui.press("enter")
-    time.sleep(8.0)   # stretched: wait for extensions page to fully load
+    time.sleep(5.0)   # 5 sec timing: wait for extensions page to fully load
 
     # 3. Enable Developer Mode (Right arrow = ON, no-op if already ON)
     pyautogui.press("tab")
@@ -260,7 +222,7 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.press("tab")
     time.sleep(1.0)
     pyautogui.press("enter")
-    time.sleep(5.0)   # stretched: wait for folder picker dialog to fully open
+    time.sleep(5.0)   # 5 sec timing: wait for folder picker dialog to fully open
 
     # 5. Select the extension folder via Windows file dialog
     subprocess.run(
@@ -275,15 +237,10 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.hotkey("ctrl", "v")
     time.sleep(1.0)
     pyautogui.press("enter")        # navigate to folder
-    time.sleep(3.0)
+    time.sleep(2.0)
     pyautogui.press("enter")        # confirm / Select Folder button
-    time.sleep(2.0)
+    time.sleep(5.0)   # 5 sec timing: wait for extension to load
 
-    # 6. Close browser, then wait for it to fully exit
-    pyautogui.hotkey("alt", "f4")
-    time.sleep(2.0)
-    kill_browser_process(process_name)
-    wait_for_process_exit(process_name, timeout=12)
 
 
 
