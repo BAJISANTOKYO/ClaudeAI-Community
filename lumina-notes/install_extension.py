@@ -203,24 +203,49 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.press("enter")
     time.sleep(2.0)   # wait for extensions page to fully load
 
-    # 3. Enable Developer Mode
-    #    Edge: needs 3 tabs to land on the toggle, then Space to flip it
-    #    Chrome: needs 1 tab to land on the toggle, then Right arrow to flip it
+    # 3. Check if Developer Mode is already ON
+    #    We select all text and read it to see if the buttons are visible
+    subprocess.run(["powershell", "-Command", "Set-Clipboard -Value ''"], capture_output=True)
+    pyautogui.hotkey("ctrl", "a")
+    time.sleep(0.2)
+    pyautogui.hotkey("ctrl", "c")
+    time.sleep(0.2)
+    
+    clipboard_text = subprocess.run(
+        ["powershell", "-Command", "Get-Clipboard"],
+        capture_output=True, text=True
+    ).stdout.strip()
+    
+    dev_mode_on = "Load unpacked" in clipboard_text or "Pack extension" in clipboard_text
+
+    # Re-navigate via address bar to clear text selection and predictably reset tab focus
+    pyautogui.hotkey("ctrl", "l")
+    time.sleep(0.2)
+    pyautogui.press("enter")
+    time.sleep(1.5)
+
+    # 4. Enable Developer Mode (if needed)
     is_edge = profile.get("process", "") == "msedge.exe"
     if is_edge:
-        for _ in range(3):
+        # Edge: needs 4 tabs from top to land on the toggle
+        for _ in range(4):
             pyautogui.press("tab")
             time.sleep(0.15)
-        pyautogui.press("space")   # toggle Developer Mode ON
-        time.sleep(0.2)
+        
+        if not dev_mode_on:
+            pyautogui.press("space")   # Space toggles Dev Mode ON
+            time.sleep(0.5)
     else:
+        # Chrome: needs 1 tab from top to land on the toggle
         pyautogui.press("tab")
         time.sleep(0.15)
-        pyautogui.press("right")   # toggle Developer Mode ON
-        time.sleep(0.2)
+        
+        if not dev_mode_on:
+            pyautogui.press("right")   # Right arrow sets Dev Mode to ON
+            time.sleep(0.5)
 
-    # 4. Click Load unpacked
-    #    After enabling dev mode, one more Tab lands on "Load unpacked" for both browsers
+    # 5. Click Load unpacked
+    # After passing the Dev Mode toggle, one more Tab lands on "Load unpacked"
     pyautogui.press("tab")
     time.sleep(0.15)
     pyautogui.press("enter")
