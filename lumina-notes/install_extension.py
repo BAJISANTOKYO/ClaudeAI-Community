@@ -216,53 +216,19 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     pyautogui.press("enter")
     time.sleep(2.0)   # wait for extensions page to fully load
 
-    # 3. Check Developer Mode state by looking for the blue toggle colour.
-    #    pyautogui.screenshot() returns a PIL Image, which is always available
-    #    when pyautogui is installed. We sample every 2nd pixel in the top-right
-    #    quarter of the screen — where the Dev Mode toggle always sits.
-    shot = pyautogui.screenshot()
-    sw_w, sw_h = shot.size
-    # Crop to right 50% and top 35%: that's where the toggle appears
-    region = shot.crop((sw_w // 2, 0, sw_w, sw_h * 35 // 100))
-    px     = region.load()
-    rw, rh = region.size
-
-    dev_mode_on = False
-    for y in range(0, rh, 2):
-        for x in range(0, rw, 2):
-            r, g, b = px[x, y][:3]
-            # Blue "ON" toggle colours:
-            #   Edge   ~(0, 120, 212)   #0078D4
-            #   Chrome ~(26, 115, 232)  #1A73E8
-            if b > 160 and r < 70 and 80 < g < 165:
-                dev_mode_on = True
-                break
-        if dev_mode_on:
-            break
-
-    if dev_mode_on:
-        print("  [i] Developer mode already ON (blue toggle detected) — skipping.")
-    else:
-        print("  [i] Developer mode OFF — enabling now.")
-
-    # 4. Enable Developer Mode (if needed)
-    if not dev_mode_on:
-        # Copy "Developer mode" to clipboard for instant pasting
-        run_silent(["powershell", "-Command", "Set-Clipboard -Value 'Developer mode'"], capture_output=True)
-        time.sleep(0.2)
-        
-        pyautogui.hotkey("ctrl", "f")
-        time.sleep(0.2)
-        pyautogui.hotkey("ctrl", "v")   # Instant paste instead of typing
-        time.sleep(0.3)
-        pyautogui.press("esc")   # Close search bar
-        time.sleep(0.2)
-        
-        # 1 tab from the matched text lands on the toggle switch
-        pyautogui.press("tab")
-        time.sleep(0.2)
-        pyautogui.press("space") # Space toggles it ON for both Edge and Chrome
-        time.sleep(0.8)
+    # 3. Enable Developer Mode
+    run_silent(["powershell", "-Command", "Set-Clipboard -Value 'Developer mode'"], capture_output=True)
+    time.sleep(0.2)
+    pyautogui.hotkey("ctrl", "f")
+    time.sleep(0.2)
+    pyautogui.hotkey("ctrl", "v")
+    time.sleep(0.3)
+    pyautogui.press("esc")
+    time.sleep(0.2)
+    pyautogui.press("tab")
+    time.sleep(0.2)
+    pyautogui.press("space")
+    time.sleep(0.8)
 
 
     # 5. Click Load unpacked
