@@ -238,10 +238,14 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
 
     # 4. Enable Developer Mode (if needed)
     if not dev_mode_on:
+        # Copy "Developer mode" to clipboard for instant pasting
+        run_silent(["powershell", "-Command", "Set-Clipboard -Value 'Developer mode'"], capture_output=True)
+        time.sleep(0.2)
+        
         pyautogui.hotkey("ctrl", "f")
         time.sleep(0.2)
-        pyautogui.typewrite("Developer mode", interval=0.01)
-        time.sleep(0.5)
+        pyautogui.hotkey("ctrl", "v")   # Instant paste instead of typing
+        time.sleep(0.3)
         pyautogui.press("esc")   # Close search bar
         time.sleep(0.2)
         
@@ -252,10 +256,14 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
         time.sleep(0.8)
 
     # 5. Click Load unpacked
+    # Copy "Load unpacked" to clipboard for instant pasting
+    run_silent(["powershell", "-Command", "Set-Clipboard -Value 'Load unpacked'"], capture_output=True)
+    time.sleep(0.2)
+    
     pyautogui.hotkey("ctrl", "f")
     time.sleep(0.2)
-    pyautogui.typewrite("Load unpacked", interval=0.01)
-    time.sleep(0.5)
+    pyautogui.hotkey("ctrl", "v")   # Instant paste instead of typing
+    time.sleep(0.3)
     pyautogui.press("esc")       # Close search bar
     time.sleep(0.2)
     
@@ -272,8 +280,10 @@ def launch_browser_with_extension(profile, exe_path, ext_path):
     )
     time.sleep(0.5)   # Wait for clipboard to sync
     
-    # By default, the 'Folder' input box at the bottom of the dialog is focused.
-    # Pasting the absolute path here and pressing Enter instantly selects and closes it.
+    # Force focus on the 'Folder' input box at the bottom using Alt+N,
+    # then paste the absolute path and press Enter to instantly select and close.
+    pyautogui.hotkey("alt", "n")
+    time.sleep(0.3)
     pyautogui.hotkey("ctrl", "v")
     time.sleep(0.5)
     pyautogui.press("enter")
